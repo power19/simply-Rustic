@@ -21,12 +21,36 @@ const upload = multer({
 
 router.use(requireAuth);
 
+// Swaps sortOrder between a record and its neighbor in a given direction.
+async function moveInList(model, list, id, direction) {
+  const index = list.findIndex((row) => row.id === id);
+  if (index === -1) return;
+  const neighborIndex = direction === 'up' ? index - 1 : index + 1;
+  if (neighborIndex < 0 || neighborIndex >= list.length) return;
+
+  const current = list[index];
+  const neighbor = list[neighborIndex];
+  await prisma.$transaction([
+    model.update({ where: { id: current.id }, data: { sortOrder: neighbor.sortOrder } }),
+    model.update({ where: { id: neighbor.id }, data: { sortOrder: current.sortOrder } }),
+  ]);
+}
+
 // ---- Categories ----
 router.post('/categories', async (req, res) => {
   const { name } = req.body;
   if (name && name.trim()) {
-    await prisma.category.create({ data: { name: name.trim() } });
+    const max = await prisma.category.aggregate({ _max: { sortOrder: true } });
+    await prisma.category.create({
+      data: { name: name.trim(), sortOrder: (max._max.sortOrder ?? 0) + 1 },
+    });
   }
+  res.redirect('/menu');
+});
+
+router.post('/categories/:id/move', async (req, res) => {
+  const categories = await prisma.category.findMany({ orderBy: { sortOrder: 'asc' } });
+  await moveInList(prisma.category, categories, Number(req.params.id), req.body.direction);
   res.redirect('/menu');
 });
 
@@ -45,18 +69,22 @@ router.post('/categories/:id/delete', async (req, res) => {
 router.get('/', async (req, res) => {
   const categories = await prisma.category.findMany({
     orderBy: { sortOrder: 'asc' },
-    include: { items: { orderBy: { name: 'asc' } } },
+    include: { items: { orderBy: { sortOrder: 'asc' } } },
   });
   res.render('menu/index', { title: 'Menu', categories });
 });
 
 router.get('/new', async (req, res) => {
-  const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
+  const categories = await prisma.category.findMany({ orderBy: { sortOrder: 'asc' } });
   res.render('menu/form', { title: 'Add Menu Item', item: null, categories });
 });
 
 router.post('/', upload.single('image'), async (req, res) => {
   const { name, description, price, categoryId, available } = req.body;
+  const max = await prisma.menuItem.aggregate({
+    where: { categoryId: Number(categoryId) },
+    _max: { sortOrder: true },
+  });
   await prisma.menuItem.create({
     data: {
       name: name.trim(),
@@ -64,6 +92,7 @@ router.post('/', upload.single('image'), async (req, res) => {
       price: parseFloat(price) || 0,
       categoryId: Number(categoryId),
       available: available === 'on',
+      sortOrder: (max._max.sortOrder ?? 0) + 1,
       imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
     },
   });
@@ -74,7 +103,7 @@ router.post('/', upload.single('image'), async (req, res) => {
 router.get('/:id/edit', async (req, res) => {
   const [item, categories] = await Promise.all([
     prisma.menuItem.findUnique({ where: { id: Number(req.params.id) } }),
-    prisma.category.findMany({ orderBy: { name: 'asc' } }),
+    prisma.category.findMany({ orderBy: { sortOrder: 'asc' } }),
   ]);
   if (!item) return res.redirect('/menu');
   res.render('menu/form', { title: 'Edit Menu Item', item, categories });
@@ -93,6 +122,18 @@ router.post('/:id', upload.single('image'), async (req, res) => {
 
   await prisma.menuItem.update({ where: { id: Number(req.params.id) }, data });
   req.flash('success', 'Menu item updated.');
+  res.redirect('/menu');
+});
+
+router.post('/:id/move', async (req, res) => {
+  const item = await prisma.menuItem.findUnique({ where: { id: Number(req.params.id) } });
+  if (item) {
+    const siblings = await prisma.menuItem.findMany({
+      where: { categoryId: item.categoryId },
+      orderBy: { sortOrder: 'asc' },
+    });
+    await moveInList(prisma.menuItem, siblings, item.id, req.body.direction);
+  }
   res.redirect('/menu');
 });
 

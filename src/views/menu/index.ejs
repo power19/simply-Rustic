@@ -14,21 +14,43 @@
   </form>
 </div>
 
-<% categories.forEach(category => { %>
+<% categories.forEach((category, catIndex) => { %>
   <div class="card">
     <div class="page-header">
-      <h3><%= category.name %></h3>
+      <div class="reorder-title">
+        <div class="reorder-buttons">
+          <form method="POST" action="/menu/categories/<%= category.id %>/move">
+            <input type="hidden" name="direction" value="up" />
+            <button type="submit" class="reorder-button" <%= catIndex === 0 ? 'disabled' : '' %> title="Move category up">&uarr;</button>
+          </form>
+          <form method="POST" action="/menu/categories/<%= category.id %>/move">
+            <input type="hidden" name="direction" value="down" />
+            <button type="submit" class="reorder-button" <%= catIndex === categories.length - 1 ? 'disabled' : '' %> title="Move category down">&darr;</button>
+          </form>
+        </div>
+        <h3><%= category.name %></h3>
+      </div>
       <form method="POST" action="/menu/categories/<%= category.id %>/delete" onsubmit="return confirm('Delete this category?');">
         <button type="submit" class="button-secondary">Delete category</button>
       </form>
     </div>
     <table class="table">
       <thead>
-        <tr><th></th><th>Name</th><th>Description</th><th>Price</th><th>Available</th><th></th></tr>
+        <tr><th></th><th></th><th>Name</th><th>Description</th><th>Price</th><th>Available</th><th></th></tr>
       </thead>
       <tbody>
-        <% category.items.forEach(item => { %>
+        <% category.items.forEach((item, itemIndex) => { %>
           <tr>
+            <td class="reorder-buttons">
+              <form method="POST" action="/menu/<%= item.id %>/move">
+                <input type="hidden" name="direction" value="up" />
+                <button type="submit" class="reorder-button" <%= itemIndex === 0 ? 'disabled' : '' %> title="Move up">&uarr;</button>
+              </form>
+              <form method="POST" action="/menu/<%= item.id %>/move">
+                <input type="hidden" name="direction" value="down" />
+                <button type="submit" class="reorder-button" <%= itemIndex === category.items.length - 1 ? 'disabled' : '' %> title="Move down">&darr;</button>
+              </form>
+            </td>
             <td><% if (item.imageUrl) { %><img class="thumb" src="<%= item.imageUrl %>" alt="" /><% } %></td>
             <td><%= item.name %></td>
             <td class="muted"><%= item.description || '' %></td>
@@ -43,7 +65,7 @@
           </tr>
         <% }) %>
         <% if (!category.items.length) { %>
-          <tr><td colspan="6" class="muted">No items in this category yet.</td></tr>
+          <tr><td colspan="7" class="muted">No items in this category yet.</td></tr>
         <% } %>
       </tbody>
     </table>

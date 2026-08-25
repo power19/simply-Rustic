@@ -29,6 +29,7 @@ model MenuItem {
   price       Float
   imageUrl    String?
   available   Boolean     @default(true)
+  sortOrder   Int         @default(0)
   category    Category    @relation(fields: [categoryId], references: [id])
   categoryId  Int
   orderItems  OrderItem[]

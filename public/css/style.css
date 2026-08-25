@@ -161,6 +161,20 @@ h1 { margin-top: 0; }
 .row-actions { display: flex; gap: 12px; align-items: center; }
 .row-actions form { display: inline; }
 
+.reorder-title { display: flex; align-items: center; gap: 12px; }
+.reorder-buttons { display: flex; gap: 4px; }
+.reorder-buttons form { display: inline; }
+.reorder-button {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.reorder-button:hover:not(:disabled) { background: var(--bg); }
+.reorder-button:disabled { opacity: 0.3; cursor: default; }
+
 .inline-form { display: flex; gap: 8px; }
 .inline-form input { flex: 1; }
 

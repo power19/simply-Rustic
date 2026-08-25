@@ -1,0 +1,61 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<h1>Settings</h1>
+
+<div class="card form">
+  <h3>Change your password</h3>
+  <form method="POST" action="/settings/password">
+    <label>Current password</label>
+    <input type="password" name="currentPassword" required />
+    <label>New password</label>
+    <input type="password" name="newPassword" minlength="8" required />
+    <label>Confirm new password</label>
+    <input type="password" name="confirmPassword" minlength="8" required />
+    <div class="form-actions">
+      <button type="submit">Update password</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Admin users</h3>
+  <table class="table">
+    <thead>
+      <tr><th>Username</th><th>Added</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% users.forEach(user => { %>
+        <tr>
+          <td>
+            <%= user.username %>
+            <% if (user.id === currentUserId) { %><span class="badge">You</span><% } %>
+          </td>
+          <td class="muted"><%= user.createdAt.toLocaleDateString() %></td>
+          <td class="row-actions">
+            <% if (user.id !== currentUserId) { %>
+              <form method="POST" action="/settings/users/<%= user.id %>/delete" onsubmit="return confirm('Remove this admin user?');">
+                <button type="submit" class="link-button">Remove</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<div class="card form">
+  <h3>Add a new admin user</h3>
+  <form method="POST" action="/settings/users">
+    <label>Username</label>
+    <input type="text" name="username" required />
+    <label>Password</label>
+    <input type="password" name="password" minlength="8" required />
+    <div class="form-actions">
+      <button type="submit">Add user</button>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

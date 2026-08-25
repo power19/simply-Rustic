@@ -9,6 +9,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const menuRoutes = require('./routes/menu');
 const serviceRoutes = require('./routes/services');
 const orderRoutes = require('./routes/orders');
+const settingsRoutes = require('./routes/settings');
 
 function createApp() {
   const app = express();
@@ -33,6 +34,7 @@ function createApp() {
 
   app.use((req, res, next) => {
     res.locals.currentUser = req.session.username || null;
+    res.locals.currentUserId = req.session.userId || null;
     res.locals.success = req.flash('success');
     res.locals.error = req.flash('error');
     res.locals.businessName = process.env.BUSINESS_NAME || 'Simply Rustic Catering';
@@ -46,6 +48,7 @@ function createApp() {
   app.use('/menu', menuRoutes);
   app.use('/services', serviceRoutes);
   app.use('/orders', orderRoutes);
+  app.use('/settings', settingsRoutes);
 
   app.use((req, res) => {
     res.status(404).render('404', { title: 'Not found' });

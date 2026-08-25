@@ -10,7 +10,7 @@ function listCategories() {
 function listAvailableItems(categoryId) {
   return prisma.menuItem.findMany({
     where: { categoryId, available: true },
-    orderBy: { name: 'asc' },
+    orderBy: { sortOrder: 'asc' },
   });
 }
 
