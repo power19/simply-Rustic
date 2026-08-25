@@ -3,6 +3,19 @@
 A WhatsApp ordering bot (built on [whatsapp-web.js](https://wwebjs.dev/)) plus an admin
 dashboard for managing your catering menu, services and incoming orders.
 
+> **⚠️ Read before linking a number.** `whatsapp-web.js` is an unofficial client — it
+> automates a real WhatsApp Web session, which is against WhatsApp's Terms of Service.
+> WhatsApp actively detects and bans numbers used this way, sometimes immediately and with
+> very little usage. **Only ever link a disposable/burner number you can afford to lose —
+> never your personal or business number.** For a real production deployment, use the
+> official [WhatsApp Business Platform (Cloud API)](https://developers.facebook.com/docs/whatsapp)
+> instead, which requires Meta business verification but carries no ban risk.
+>
+> Separately: the first time any device links, WhatsApp replays the account's message
+> history to sync it. This codebase guards against treating that replay as new messages
+> (see `src/whatsapp/client.js`), but it's a reminder of how easily an unofficial client can
+> end up auto-messaging every past contact at once if that guard is ever removed.
+
 ## What's included
 
 - **Admin dashboard** (Express + EJS) at `/` — manage menu categories/items (with photos),
