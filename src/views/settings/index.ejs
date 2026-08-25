@@ -8,11 +8,52 @@
   <form class="form" method="POST" action="/settings/store">
     <label>Business name</label>
     <input type="text" name="businessName" value="<%= storeSettings.businessName %>" required />
-    <label>Currency symbol</label>
-    <input type="text" name="currencySymbol" value="<%= storeSettings.currencySymbol %>" maxlength="5" required />
-    <p class="muted">Used for prices shown in the dashboard and in the WhatsApp bot's replies, e.g. "<%= storeSettings.currencySymbol %>150.00". Use whatever symbol or code you like, e.g. R, $, &#8377;, Rs.</p>
+    <label>Currency</label>
+    <select name="currencySymbol">
+      <% currencyOptions.forEach(opt => { %>
+        <option value="<%= opt.prefix %>" <%= storeSettings.currencySymbol === opt.prefix ? 'selected' : '' %>><%= opt.code %> (<%= opt.prefix.trim() %>)</option>
+      <% }) %>
+    </select>
+    <label>Or enter a custom currency symbol/code</label>
+    <input type="text" name="customCurrency" value="<%= customCurrency %>" maxlength="10" placeholder="Leave blank to use the dropdown above" />
+    <p class="muted">Used for prices shown in the dashboard and in the WhatsApp bot's replies, e.g. "<%= storeSettings.currencySymbol %>150.00".</p>
     <div class="form-actions">
       <button type="submit">Save store details</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h3>Order notifications</h3>
+  <p class="muted">WhatsApp numbers that get messaged whenever a new order or service enquiry comes in.</p>
+  <table class="table">
+    <thead>
+      <tr><th>Number</th><th>Label</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% notificationNumbers.forEach(n => { %>
+        <tr>
+          <td><%= n.number %></td>
+          <td class="muted"><%= n.label || '' %></td>
+          <td class="row-actions">
+            <form method="POST" action="/settings/notifications/<%= n.id %>/delete" onsubmit="return confirm('Stop notifying this number?');">
+              <button type="submit" class="link-button">Remove</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (!notificationNumbers.length) { %>
+        <tr><td colspan="3" class="muted">No numbers configured yet - orders won't be forwarded anywhere.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+  <form class="form" method="POST" action="/settings/notifications">
+    <label>WhatsApp number (with country code, e.g. 15551234567)</label>
+    <input type="text" name="number" required />
+    <label>Label (optional, e.g. "Owner" or "Kitchen")</label>
+    <input type="text" name="label" />
+    <div class="form-actions">
+      <button type="submit">Add number</button>
     </div>
   </form>
 </div>

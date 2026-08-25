@@ -12,6 +12,14 @@ model Setting {
   value String
 }
 
+// A WhatsApp number that gets notified when a new order/enquiry comes in.
+model NotificationNumber {
+  id        Int      @id @default(autoincrement())
+  number    String   @unique
+  label     String?
+  createdAt DateTime @default(now())
+}
+
 model AdminUser {
   id           Int      @id @default(autoincrement())
   username     String   @unique

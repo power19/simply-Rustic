@@ -2,29 +2,72 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { requireAuth } = require('../middleware/auth');
-const { getStoreSettings, setStoreSettings } = require('../lib/settings');
+const {
+  getStoreSettings,
+  setStoreSettings,
+  CURRENCY_OPTIONS,
+  addNotificationNumber,
+  removeNotificationNumber,
+} = require('../lib/settings');
 
 const router = express.Router();
 
 router.use(requireAuth);
 
 router.get('/', async (req, res) => {
-  const [users, storeSettings] = await Promise.all([
+  const [users, storeSettings, notificationNumbers] = await Promise.all([
     prisma.adminUser.findMany({ orderBy: { createdAt: 'asc' } }),
     getStoreSettings(),
+    prisma.notificationNumber.findMany({ orderBy: { createdAt: 'asc' } }),
   ]);
-  res.render('settings/index', { title: 'Settings', users, storeSettings });
+  const isPreset = CURRENCY_OPTIONS.some((opt) => opt.prefix === storeSettings.currencySymbol);
+  res.render('settings/index', {
+    title: 'Settings',
+    users,
+    storeSettings,
+    currencyOptions: CURRENCY_OPTIONS,
+    customCurrency: isPreset ? '' : storeSettings.currencySymbol,
+    notificationNumbers,
+  });
 });
 
 router.post('/store', async (req, res) => {
-  const { businessName, currencySymbol } = req.body;
-  if (!businessName || !businessName.trim() || !currencySymbol || !currencySymbol.trim()) {
-    req.flash('error', 'Business name and currency symbol are both required.');
+  const { businessName, currencySymbol, customCurrency } = req.body;
+  // Only trim the free-typed custom value (guards against accidental whitespace).
+  // Preset dropdown values are used exactly as defined - SRD's trailing space is
+  // intentional (see CURRENCY_OPTIONS) and must survive the round trip.
+  const trimmedCustom = (customCurrency || '').trim();
+  const resolvedSymbol = trimmedCustom || currencySymbol;
+  if (!businessName || !businessName.trim() || !resolvedSymbol) {
+    req.flash('error', 'Business name and currency are both required.');
     return res.redirect('/settings');
   }
 
-  await setStoreSettings({ businessName: businessName.trim(), currencySymbol: currencySymbol.trim() });
+  await setStoreSettings({ businessName: businessName.trim(), currencySymbol: resolvedSymbol });
   req.flash('success', 'Store details updated.');
+  res.redirect('/settings');
+});
+
+router.post('/notifications', async (req, res) => {
+  const { number, label } = req.body;
+  const digits = (number || '').replace(/\D/g, '');
+  if (digits.length < 7) {
+    req.flash('error', 'Enter a valid WhatsApp number with country code (digits only, at least 7 digits).');
+    return res.redirect('/settings');
+  }
+
+  try {
+    await addNotificationNumber(digits, label ? label.trim() : null);
+    req.flash('success', 'Notification number added.');
+  } catch (err) {
+    req.flash('error', 'That number is already on the list.');
+  }
+  res.redirect('/settings');
+});
+
+router.post('/notifications/:id/delete', async (req, res) => {
+  await removeNotificationNumber(Number(req.params.id));
+  req.flash('success', 'Notification number removed.');
   res.redirect('/settings');
 });
 

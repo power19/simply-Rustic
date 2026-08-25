@@ -1,5 +1,5 @@
 const prisma = require('../lib/prisma');
-const { getStoreSettings } = require('../lib/settings');
+const { getStoreSettings, getNotificationNumbers } = require('../lib/settings');
 const { getSession, saveSession, resetSession } = require('./session');
 const { listCategories, listAvailableItems, listAvailableServices, findOrCreateCustomer } = require('./catalog');
 const { money, cartTotal, formatCart } = require('./format');
@@ -63,13 +63,16 @@ async function formatServiceList() {
 }
 
 async function notifyAdmin(client, text) {
-  const adminNumber = process.env.ADMIN_WHATSAPP_NUMBER;
-  if (!adminNumber) return;
-  try {
-    await client.sendMessage(`${adminNumber}@c.us`, text);
-  } catch (err) {
-    console.error('Failed to notify admin:', err.message);
-  }
+  const numbers = await getNotificationNumbers();
+  await Promise.all(
+    numbers.map(async (number) => {
+      try {
+        await client.sendMessage(`${number}@c.us`, text);
+      } catch (err) {
+        console.error(`Failed to notify ${number}:`, err.message);
+      }
+    })
+  );
 }
 
 function parseItemSelection(raw, itemCount) {
