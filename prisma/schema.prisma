@@ -111,5 +111,8 @@ model ChatSession {
   step       String   @default("MAIN")
   categoryId Int?
   cartJson   String   @default("[]")
+  // Scratch space for multi-step wizards (order date/address/notes, service
+  // enquiry date/guests/location/notes) - cleared once the flow completes.
+  draftJson  String   @default("{}")
   updatedAt  DateTime @updatedAt
 }

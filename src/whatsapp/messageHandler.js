@@ -118,8 +118,8 @@ async function beginCheckout(chatId, session, customer) {
     await saveSession(chatId, { step: 'CHECKOUT_CONTACT', categoryId: null, cart: session.cart });
     return ASK_CONTACT_INFO;
   }
-  await saveSession(chatId, { step: 'CHECKOUT_NOTE', categoryId: null, cart: session.cart });
-  return 'Please share your event/delivery date, address and any notes for this order (or reply 0 to skip).';
+  await saveSession(chatId, { step: 'CHECKOUT_DATE', categoryId: null, cart: session.cart, draft: {} });
+  return 'What date do you need this for? (e.g. "today", "tomorrow", or a date)';
 }
 
 async function handleMessage(client, message) {
@@ -247,10 +247,8 @@ async function handleMessage(client, message) {
         await saveSession(chatId, { step: 'SERVICE_CONTACT', categoryId: service.id, cart: session.cart });
         return message.reply(ASK_CONTACT_INFO);
       }
-      await saveSession(chatId, { step: 'SERVICE_NOTE', categoryId: service.id, cart: session.cart });
-      return message.reply(
-        `Great choice! Please tell us more about your *${service.name}* enquiry (event date, guest count, location), or reply 0 to skip.`
-      );
+      await saveSession(chatId, { step: 'SERVICE_DATE', categoryId: service.id, cart: session.cart, draft: {} });
+      return message.reply(`Great choice! What date is the *${service.name}* for?`);
     }
 
     case 'CHECKOUT_CONTACT':
@@ -267,47 +265,46 @@ async function handleMessage(client, message) {
       });
 
       if (session.step === 'CHECKOUT_CONTACT') {
-        await saveSession(chatId, { step: 'CHECKOUT_NOTE', categoryId: null, cart: session.cart });
-        return message.reply(
-          'Thanks! Please share your event/delivery date, address and any notes for this order (or reply 0 to skip).'
-        );
+        await saveSession(chatId, { step: 'CHECKOUT_DATE', categoryId: null, cart: session.cart, draft: {} });
+        return message.reply('Thanks! What date do you need this for? (e.g. "today", "tomorrow", or a date)');
       }
 
       const service = await prisma.service.findUnique({ where: { id: session.categoryId } });
-      await saveSession(chatId, { step: 'SERVICE_NOTE', categoryId: session.categoryId, cart: session.cart });
-      return message.reply(
-        `Thanks! Please tell us more about your *${service?.name}* enquiry (event date, guest count, location), or reply 0 to skip.`
-      );
+      await saveSession(chatId, { step: 'SERVICE_DATE', categoryId: session.categoryId, cart: session.cart, draft: {} });
+      return message.reply(`Thanks! What date is the *${service?.name}* for?`);
     }
 
-    case 'SERVICE_NOTE': {
-      const serviceId = session.categoryId;
-      const service = await prisma.service.findUnique({ where: { id: serviceId } });
-      const note = lower === '0' || lower === 'skip' ? null : body;
-
-      const order = await prisma.order.create({
-        data: {
-          customerId: customer.id,
-          type: 'SERVICE',
-          serviceId,
-          note,
-          totalAmount: service?.price || 0,
-          status: 'PENDING',
-        },
+    // ---- Menu order wizard: date -> address -> notes ----
+    case 'CHECKOUT_DATE': {
+      if (!body) {
+        return message.reply('Please tell us what date you need this for.');
+      }
+      await saveSession(chatId, {
+        step: 'CHECKOUT_ADDRESS',
+        categoryId: null,
+        cart: session.cart,
+        draft: { ...session.draft, date: body },
       });
-
-      await resetSession(chatId);
-      await notifyAdmin(
-        client,
-        `New service enquiry #${order.id}\nService: ${service?.name}\nFrom: ${describeCustomer(customer, chatId)}\nNote: ${note || '-'}`
-      );
-      return message.reply(
-        `Thank you! Your enquiry for *${service?.name}* has been received (reference #${order.id}). We'll be in touch soon.\n\n${await welcomeText()}`
-      );
+      return message.reply('What\'s the delivery/event address?');
     }
 
-    case 'CHECKOUT_NOTE': {
-      const note = lower === '0' || lower === 'skip' ? null : body;
+    case 'CHECKOUT_ADDRESS': {
+      if (!body) {
+        return message.reply('Please share the delivery/event address.');
+      }
+      await saveSession(chatId, {
+        step: 'CHECKOUT_NOTES',
+        categoryId: null,
+        cart: session.cart,
+        draft: { ...session.draft, address: body },
+      });
+      return message.reply('Any additional notes for this order? Reply 0 if none.');
+    }
+
+    case 'CHECKOUT_NOTES': {
+      const notes = lower === '0' || lower === 'skip' ? null : body;
+      const { date, address } = session.draft;
+      const note = `Date: ${date}\nAddress: ${address}\nNotes: ${notes || '-'}`;
       const total = cartTotal(session.cart);
 
       const order = await prisma.order.create({
@@ -330,10 +327,78 @@ async function handleMessage(client, message) {
       await resetSession(chatId);
       await notifyAdmin(
         client,
-        `New order #${order.id}\nFrom: ${describeCustomer(customer, chatId)}\nTotal: ${await money(total)}\nNote: ${note || '-'}\n\n${await formatCart(session.cart)}`
+        `New order #${order.id}\nFrom: ${describeCustomer(customer, chatId)}\nTotal: ${await money(total)}\n${note}\n\n${await formatCart(session.cart)}`
       );
       return message.reply(
         `Thank you! Your order #${order.id} for ${await money(total)} has been received. We'll confirm it with you shortly.\n\n${await welcomeText()}`
+      );
+    }
+
+    // ---- Service enquiry wizard: date -> guests -> location -> notes ----
+    case 'SERVICE_DATE': {
+      if (!body) {
+        return message.reply('Please tell us the date.');
+      }
+      await saveSession(chatId, {
+        step: 'SERVICE_GUESTS',
+        categoryId: session.categoryId,
+        cart: session.cart,
+        draft: { ...session.draft, date: body },
+      });
+      return message.reply('About how many guests?');
+    }
+
+    case 'SERVICE_GUESTS': {
+      if (!body) {
+        return message.reply('Please tell us roughly how many guests.');
+      }
+      await saveSession(chatId, {
+        step: 'SERVICE_LOCATION',
+        categoryId: session.categoryId,
+        cart: session.cart,
+        draft: { ...session.draft, guests: body },
+      });
+      return message.reply('What\'s the location?');
+    }
+
+    case 'SERVICE_LOCATION': {
+      if (!body) {
+        return message.reply('Please share the location.');
+      }
+      await saveSession(chatId, {
+        step: 'SERVICE_NOTES',
+        categoryId: session.categoryId,
+        cart: session.cart,
+        draft: { ...session.draft, location: body },
+      });
+      return message.reply('Any other details? Reply 0 if none.');
+    }
+
+    case 'SERVICE_NOTES': {
+      const notes = lower === '0' || lower === 'skip' ? null : body;
+      const serviceId = session.categoryId;
+      const service = await prisma.service.findUnique({ where: { id: serviceId } });
+      const { date, guests, location } = session.draft;
+      const note = `Date: ${date}\nGuests: ${guests}\nLocation: ${location}\nNotes: ${notes || '-'}`;
+
+      const order = await prisma.order.create({
+        data: {
+          customerId: customer.id,
+          type: 'SERVICE',
+          serviceId,
+          note,
+          totalAmount: service?.price || 0,
+          status: 'PENDING',
+        },
+      });
+
+      await resetSession(chatId);
+      await notifyAdmin(
+        client,
+        `New service enquiry #${order.id}\nService: ${service?.name}\nFrom: ${describeCustomer(customer, chatId)}\n${note}`
+      );
+      return message.reply(
+        `Thank you! Your enquiry for *${service?.name}* has been received (reference #${order.id}). We'll be in touch soon.\n\n${await welcomeText()}`
       );
     }
 

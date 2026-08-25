@@ -34,7 +34,7 @@
             <% } %>
           </td>
           <td><%= currencySymbol %><%= order.totalAmount.toFixed(2) %></td>
-          <td class="muted"><%= order.note || '' %></td>
+          <td class="muted note-cell"><%= order.note || '' %></td>
           <td>
             <form method="POST" action="/orders/<%= order.id %>/status">
               <select name="status" onchange="this.form.submit()">
