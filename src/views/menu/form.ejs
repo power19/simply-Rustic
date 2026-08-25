@@ -1,0 +1,40 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<h1><%= item ? 'Edit menu item' : 'Add menu item' %></h1>
+
+<form class="card form" method="POST" action="<%= item ? `/menu/${item.id}` : '/menu' %>" enctype="multipart/form-data">
+  <label>Name</label>
+  <input type="text" name="name" value="<%= item ? item.name : '' %>" required />
+
+  <label>Description</label>
+  <textarea name="description" rows="3"><%= item ? (item.description || '') : '' %></textarea>
+
+  <label>Price (<%= currencySymbol %>)</label>
+  <input type="number" step="0.01" min="0" name="price" value="<%= item ? item.price : '' %>" required />
+
+  <label>Category</label>
+  <select name="categoryId" required>
+    <% categories.forEach(c => { %>
+      <option value="<%= c.id %>" <%= item && item.categoryId === c.id ? 'selected' : '' %>><%= c.name %></option>
+    <% }) %>
+  </select>
+
+  <label>Image</label>
+  <% if (item && item.imageUrl) { %>
+    <img class="thumb thumb-lg" src="<%= item.imageUrl %>" alt="" />
+  <% } %>
+  <input type="file" name="image" accept="image/*" />
+
+  <label class="checkbox-label">
+    <input type="checkbox" name="available" <%= !item || item.available ? 'checked' : '' %> />
+    Available to order
+  </label>
+
+  <div class="form-actions">
+    <button type="submit">Save</button>
+    <a href="/menu" class="button-secondary">Cancel</a>
+  </div>
+</form>
+
+<%- include('../partials/footer') %>

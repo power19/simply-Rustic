@@ -1,0 +1,36 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-header">
+  <h1>Services</h1>
+  <a class="button" href="/services/new">+ Add service</a>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr><th>Name</th><th>Description</th><th>Price</th><th>Available</th><th></th></tr>
+    </thead>
+    <tbody>
+      <% services.forEach(service => { %>
+        <tr>
+          <td><%= service.name %></td>
+          <td class="muted"><%= service.description || '' %></td>
+          <td><%= service.price ? `${currencySymbol}${service.price.toFixed(2)}` : 'On request' %></td>
+          <td><span class="badge badge-<%= service.available ? 'success' : 'warn' %>"><%= service.available ? 'Yes' : 'No' %></span></td>
+          <td class="row-actions">
+            <a href="/services/<%= service.id %>/edit">Edit</a>
+            <form method="POST" action="/services/<%= service.id %>/delete" onsubmit="return confirm('Delete this service?');">
+              <button type="submit" class="link-button">Delete</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (!services.length) { %>
+        <tr><td colspan="5" class="muted">No services yet.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/footer') %>

@@ -1,0 +1,54 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<h1>Orders</h1>
+
+<div class="filter-bar">
+  <a class="<%= !filter ? 'active' : '' %>" href="/orders">All</a>
+  <% statuses.forEach(s => { %>
+    <a class="<%= filter === s ? 'active' : '' %>" href="/orders?status=<%= s %>"><%= s %></a>
+  <% }) %>
+</div>
+
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr><th>#</th><th>Customer</th><th>Type</th><th>Details</th><th>Total</th><th>Note</th><th>Status</th><th>Date</th></tr>
+    </thead>
+    <tbody>
+      <% orders.forEach(order => { %>
+        <tr>
+          <td>#<%= order.id %></td>
+          <td><%= order.customer.phone %></td>
+          <td><%= order.type %></td>
+          <td>
+            <% if (order.type === 'SERVICE') { %>
+              <%= order.service ? order.service.name : '-' %>
+            <% } else { %>
+              <ul class="plain-list">
+                <% order.items.forEach(i => { %><li><%= i.menuItem.name %> x<%= i.quantity %></li><% }) %>
+              </ul>
+            <% } %>
+          </td>
+          <td><%= currencySymbol %><%= order.totalAmount.toFixed(2) %></td>
+          <td class="muted"><%= order.note || '' %></td>
+          <td>
+            <form method="POST" action="/orders/<%= order.id %>/status">
+              <select name="status" onchange="this.form.submit()">
+                <% statuses.forEach(s => { %>
+                  <option value="<%= s %>" <%= order.status === s ? 'selected' : '' %>><%= s %></option>
+                <% }) %>
+              </select>
+            </form>
+          </td>
+          <td><%= order.createdAt.toLocaleString() %></td>
+        </tr>
+      <% }) %>
+      <% if (!orders.length) { %>
+        <tr><td colspan="8" class="muted">No orders found.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('../partials/footer') %>

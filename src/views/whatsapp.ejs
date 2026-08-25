@@ -1,0 +1,20 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<h1>WhatsApp Connection</h1>
+
+<div class="card center-card">
+  <p>Status: <span class="badge badge-<%= whatsapp.status === 'READY' ? 'success' : 'warn' %>"><%= whatsapp.status %></span></p>
+
+  <% if (whatsapp.status === 'READY') { %>
+    <p class="muted">Connected as <%= whatsapp.info ? whatsapp.info.pushname : '' %>. The bot is live and replying to customers.</p>
+  <% } else if (whatsapp.qrDataUrl) { %>
+    <p class="muted">Open WhatsApp on your phone → Linked devices → Link a device, then scan this code:</p>
+    <img src="<%= whatsapp.qrDataUrl %>" alt="WhatsApp QR code" class="qr-image" />
+    <p class="muted">This page does not auto-refresh — reload it if the code expires.</p>
+  <% } else { %>
+    <p class="muted">Waiting for a QR code from WhatsApp... reload this page in a few seconds.</p>
+  <% } %>
+</div>
+
+<%- include('partials/footer') %>

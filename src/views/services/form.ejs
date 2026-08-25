@@ -1,0 +1,27 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<h1><%= service ? 'Edit service' : 'Add service' %></h1>
+
+<form class="card form" method="POST" action="<%= service ? `/services/${service.id}` : '/services' %>">
+  <label>Name</label>
+  <input type="text" name="name" value="<%= service ? service.name : '' %>" required />
+
+  <label>Description</label>
+  <textarea name="description" rows="3"><%= service ? (service.description || '') : '' %></textarea>
+
+  <label>Price (<%= currencySymbol %>, leave blank for "on request")</label>
+  <input type="number" step="0.01" min="0" name="price" value="<%= service && service.price !== null ? service.price : '' %>" />
+
+  <label class="checkbox-label">
+    <input type="checkbox" name="available" <%= !service || service.available ? 'checked' : '' %> />
+    Available / listed to customers
+  </label>
+
+  <div class="form-actions">
+    <button type="submit">Save</button>
+    <a href="/services" class="button-secondary">Cancel</a>
+  </div>
+</form>
+
+<%- include('../partials/footer') %>

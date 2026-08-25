@@ -1,0 +1,64 @@
+<%- include('partials/head') %>
+<%- include('partials/nav') %>
+
+<h1>Dashboard</h1>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-value"><%= pendingOrders %></div>
+    <div class="stat-label">Pending orders</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value"><%= totalItems %></div>
+    <div class="stat-label">Menu items</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value"><%= totalServices %></div>
+    <div class="stat-label">Services</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">
+      <span class="badge badge-<%= whatsapp.status === 'READY' ? 'success' : 'warn' %>"><%= whatsapp.status %></span>
+    </div>
+    <div class="stat-label">WhatsApp bot</div>
+  </div>
+</div>
+
+<h2>Recent orders</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Customer</th>
+      <th>Type</th>
+      <th>Details</th>
+      <th>Total</th>
+      <th>Status</th>
+      <th>Date</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% recentOrders.forEach(order => { %>
+      <tr>
+        <td>#<%= order.id %></td>
+        <td><%= order.customer.phone %></td>
+        <td><%= order.type %></td>
+        <td>
+          <% if (order.type === 'SERVICE') { %>
+            <%= order.service ? order.service.name : '-' %>
+          <% } else { %>
+            <%= order.items.map(i => `${i.menuItem.name} x${i.quantity}`).join(', ') %>
+          <% } %>
+        </td>
+        <td><%= currencySymbol %><%= order.totalAmount.toFixed(2) %></td>
+        <td><span class="badge"><%= order.status %></span></td>
+        <td><%= order.createdAt.toLocaleString() %></td>
+      </tr>
+    <% }) %>
+    <% if (!recentOrders.length) { %>
+      <tr><td colspan="7" class="muted">No orders yet.</td></tr>
+    <% } %>
+  </tbody>
+</table>
+
+<%- include('partials/footer') %>

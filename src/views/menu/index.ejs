@@ -1,0 +1,57 @@
+<%- include('../partials/head') %>
+<%- include('../partials/nav') %>
+
+<div class="page-header">
+  <h1>Menu</h1>
+  <a class="button" href="/menu/new">+ Add menu item</a>
+</div>
+
+<div class="card">
+  <h3>Add category</h3>
+  <form method="POST" action="/menu/categories" class="inline-form">
+    <input type="text" name="name" placeholder="e.g. Starters" required />
+    <button type="submit">Add</button>
+  </form>
+</div>
+
+<% categories.forEach(category => { %>
+  <div class="card">
+    <div class="page-header">
+      <h3><%= category.name %></h3>
+      <form method="POST" action="/menu/categories/<%= category.id %>/delete" onsubmit="return confirm('Delete this category?');">
+        <button type="submit" class="button-secondary">Delete category</button>
+      </form>
+    </div>
+    <table class="table">
+      <thead>
+        <tr><th></th><th>Name</th><th>Description</th><th>Price</th><th>Available</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% category.items.forEach(item => { %>
+          <tr>
+            <td><% if (item.imageUrl) { %><img class="thumb" src="<%= item.imageUrl %>" alt="" /><% } %></td>
+            <td><%= item.name %></td>
+            <td class="muted"><%= item.description || '' %></td>
+            <td><%= currencySymbol %><%= item.price.toFixed(2) %></td>
+            <td><span class="badge badge-<%= item.available ? 'success' : 'warn' %>"><%= item.available ? 'Yes' : 'No' %></span></td>
+            <td class="row-actions">
+              <a href="/menu/<%= item.id %>/edit">Edit</a>
+              <form method="POST" action="/menu/<%= item.id %>/delete" onsubmit="return confirm('Delete this item?');">
+                <button type="submit" class="link-button">Delete</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+        <% if (!category.items.length) { %>
+          <tr><td colspan="6" class="muted">No items in this category yet.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+<% }) %>
+
+<% if (!categories.length) { %>
+  <p class="muted">Add a category above to get started.</p>
+<% } %>
+
+<%- include('../partials/footer') %>

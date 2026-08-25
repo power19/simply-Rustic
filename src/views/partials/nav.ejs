@@ -1,0 +1,22 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><%= businessName %></div>
+    <nav>
+      <a href="/" class="<%= path === '/' ? 'active' : '' %>">Dashboard</a>
+      <a href="/menu" class="<%= path.startsWith('/menu') ? 'active' : '' %>">Menu</a>
+      <a href="/services" class="<%= path.startsWith('/services') ? 'active' : '' %>">Services</a>
+      <a href="/orders" class="<%= path.startsWith('/orders') ? 'active' : '' %>">Orders</a>
+      <a href="/whatsapp" class="<%= path.startsWith('/whatsapp') ? 'active' : '' %>">WhatsApp</a>
+    </nav>
+    <form action="/logout" method="POST" class="logout-form">
+      <span class="current-user"><%= currentUser %></span>
+      <button type="submit">Log out</button>
+    </form>
+  </aside>
+  <main class="content">
+    <% if (success && success.length) { %>
+      <div class="flash flash-success"><%= success[0] %></div>
+    <% } %>
+    <% if (error && error.length) { %>
+      <div class="flash flash-error"><%= error[0] %></div>
+    <% } %>

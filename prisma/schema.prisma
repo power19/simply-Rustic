@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  sortOrder Int        @default(0)
+  items     MenuItem[]
+  createdAt DateTime   @default(now())
+}
+
+model MenuItem {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float
+  imageUrl    String?
+  available   Boolean     @default(true)
+  category    Category    @relation(fields: [categoryId], references: [id])
+  categoryId  Int
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Service {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  price       Float?
+  available   Boolean  @default(true)
+  orders      Order[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Customer {
+  id        Int      @id @default(autoincrement())
+  phone     String   @unique
+  name      String?
+  orders    Order[]
+  createdAt DateTime @default(now())
+}
+
+// SQLite has no native enum support in Prisma, so type/status are
+// plain strings constrained in application code (see src/routes/orders.js
+// and the OrderType/OrderStatus values used in src/whatsapp).
+model Order {
+  id          Int         @id @default(autoincrement())
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  customerId  Int
+  type        String      @default("MENU")
+  service     Service?    @relation(fields: [serviceId], references: [id])
+  serviceId   Int?
+  status      String      @default("PENDING")
+  note        String?
+  totalAmount Float       @default(0)
+  items       OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model OrderItem {
+  id          Int      @id @default(autoincrement())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     Int
+  menuItem    MenuItem @relation(fields: [menuItemId], references: [id])
+  menuItemId  Int
+  quantity    Int
+  priceAtSale Float
+}
+
+model ChatSession {
+  id         Int      @id @default(autoincrement())
+  phone      String   @unique
+  step       String   @default("MAIN")
+  categoryId Int?
+  cartJson   String   @default("[]")
+  updatedAt  DateTime @updatedAt
+}

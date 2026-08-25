@@ -1,0 +1,15 @@
+node_modules/
+.env
+*.log
+
+# SQLite dev database
+prisma/dev.db
+prisma/dev.db-journal
+
+# whatsapp-web.js session data (contains live login session - never commit)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# uploaded menu images
+public/uploads/*
+!public/uploads/.gitkeep
