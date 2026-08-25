@@ -2,14 +2,30 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { requireAuth } = require('../middleware/auth');
+const { getStoreSettings, setStoreSettings } = require('../lib/settings');
 
 const router = express.Router();
 
 router.use(requireAuth);
 
 router.get('/', async (req, res) => {
-  const users = await prisma.adminUser.findMany({ orderBy: { createdAt: 'asc' } });
-  res.render('settings/index', { title: 'Settings', users });
+  const [users, storeSettings] = await Promise.all([
+    prisma.adminUser.findMany({ orderBy: { createdAt: 'asc' } }),
+    getStoreSettings(),
+  ]);
+  res.render('settings/index', { title: 'Settings', users, storeSettings });
+});
+
+router.post('/store', async (req, res) => {
+  const { businessName, currencySymbol } = req.body;
+  if (!businessName || !businessName.trim() || !currencySymbol || !currencySymbol.trim()) {
+    req.flash('error', 'Business name and currency symbol are both required.');
+    return res.redirect('/settings');
+  }
+
+  await setStoreSettings({ businessName: businessName.trim(), currencySymbol: currencySymbol.trim() });
+  req.flash('success', 'Store details updated.');
+  res.redirect('/settings');
 });
 
 router.post('/users', async (req, res) => {

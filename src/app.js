@@ -10,6 +10,7 @@ const menuRoutes = require('./routes/menu');
 const serviceRoutes = require('./routes/services');
 const orderRoutes = require('./routes/orders');
 const settingsRoutes = require('./routes/settings');
+const { getStoreSettings } = require('./lib/settings');
 
 function createApp() {
   const app = express();
@@ -32,15 +33,20 @@ function createApp() {
   );
   app.use(flash());
 
-  app.use((req, res, next) => {
-    res.locals.currentUser = req.session.username || null;
-    res.locals.currentUserId = req.session.userId || null;
-    res.locals.success = req.flash('success');
-    res.locals.error = req.flash('error');
-    res.locals.businessName = process.env.BUSINESS_NAME || 'Simply Rustic Catering';
-    res.locals.currencySymbol = process.env.CURRENCY_SYMBOL || 'R';
-    res.locals.path = req.path;
-    next();
+  app.use(async (req, res, next) => {
+    try {
+      res.locals.currentUser = req.session.username || null;
+      res.locals.currentUserId = req.session.userId || null;
+      res.locals.success = req.flash('success');
+      res.locals.error = req.flash('error');
+      const { businessName, currencySymbol } = await getStoreSettings();
+      res.locals.businessName = businessName;
+      res.locals.currencySymbol = currencySymbol;
+      res.locals.path = req.path;
+      next();
+    } catch (err) {
+      next(err);
+    }
   });
 
   app.use('/', authRoutes);

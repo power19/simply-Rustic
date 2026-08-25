@@ -18,11 +18,14 @@ function listAvailableServices() {
   return prisma.service.findMany({ where: { available: true }, orderBy: { name: 'asc' } });
 }
 
-function findOrCreateCustomer(phone) {
+// `chatId` is WhatsApp's internal chat id: a real phone number for "@c.us"
+// chats, but an opaque privacy id for "@lid" chats. `isRealNumber` tells us
+// which, so we can auto-fill contactNumber only when it's actually a number.
+function findOrCreateCustomer(chatId, isRealNumber) {
   return prisma.customer.upsert({
-    where: { phone },
+    where: { phone: chatId },
     update: {},
-    create: { phone },
+    create: { phone: chatId, contactNumber: isRealNumber ? chatId : null },
   });
 }
 

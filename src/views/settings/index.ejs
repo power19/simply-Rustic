@@ -3,9 +3,23 @@
 
 <h1>Settings</h1>
 
-<div class="card form">
+<div class="card">
+  <h3>Store details</h3>
+  <form class="form" method="POST" action="/settings/store">
+    <label>Business name</label>
+    <input type="text" name="businessName" value="<%= storeSettings.businessName %>" required />
+    <label>Currency symbol</label>
+    <input type="text" name="currencySymbol" value="<%= storeSettings.currencySymbol %>" maxlength="5" required />
+    <p class="muted">Used for prices shown in the dashboard and in the WhatsApp bot's replies, e.g. "<%= storeSettings.currencySymbol %>150.00". Use whatever symbol or code you like, e.g. R, $, &#8377;, Rs.</p>
+    <div class="form-actions">
+      <button type="submit">Save store details</button>
+    </div>
+  </form>
+</div>
+
+<div class="card">
   <h3>Change your password</h3>
-  <form method="POST" action="/settings/password">
+  <form class="form" method="POST" action="/settings/password">
     <label>Current password</label>
     <input type="password" name="currentPassword" required />
     <label>New password</label>
@@ -45,9 +59,9 @@
   </table>
 </div>
 
-<div class="card form">
+<div class="card">
   <h3>Add a new admin user</h3>
-  <form method="POST" action="/settings/users">
+  <form class="form" method="POST" action="/settings/users">
     <label>Username</label>
     <input type="text" name="username" required />
     <label>Password</label>

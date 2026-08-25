@@ -41,7 +41,10 @@
     <% recentOrders.forEach(order => { %>
       <tr>
         <td>#<%= order.id %></td>
-        <td><%= order.customer.phone %></td>
+        <td>
+          <% if (order.customer.name) { %><%= order.customer.name %><br/><% } %>
+          <%= order.customer.contactNumber || 'No number on file' %>
+        </td>
         <td><%= order.type %></td>
         <td>
           <% if (order.type === 'SERVICE') { %>

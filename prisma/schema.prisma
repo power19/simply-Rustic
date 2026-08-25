@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Setting {
+  key   String @id
+  value String
+}
+
 model AdminUser {
   id           Int      @id @default(autoincrement())
   username     String   @unique
@@ -49,11 +54,19 @@ model Service {
 }
 
 model Customer {
-  id        Int      @id @default(autoincrement())
-  phone     String   @unique
-  name      String?
-  orders    Order[]
-  createdAt DateTime @default(now())
+  id            Int      @id @default(autoincrement())
+  // WhatsApp's internal chat id - a real phone number for "@c.us" chats, but an
+  // opaque privacy id for "@lid" chats that reveals nothing about the person.
+  // Always safe to use for replying/session-keying, never safe to show as "the
+  // customer's number" - use contactNumber for that.
+  phone         String   @unique
+  name          String?
+  // The actual number to call/message the customer on. Auto-filled from `phone`
+  // when that's a real number; otherwise collected once via the bot and reused
+  // for every future order so returning customers aren't asked again.
+  contactNumber String?
+  orders        Order[]
+  createdAt     DateTime @default(now())
 }
 
 // SQLite has no native enum support in Prisma, so type/status are
