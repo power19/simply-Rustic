@@ -75,12 +75,26 @@ async function formatCartSummary(cart) {
 
 async function notifyAdmin(client, text) {
   const numbers = await getNotificationNumbers();
+  console.log('notifyAdmin: numbers configured:', numbers);
+  if (!numbers.length) {
+    console.log('notifyAdmin: no notification numbers configured, nothing to send.');
+    return;
+  }
   await Promise.all(
     numbers.map(async (number) => {
       try {
-        await client.sendMessage(`${number}@c.us`, text);
+        // Resolve to WhatsApp's actual id for this number rather than guessing
+        // "<number>@c.us" - returns null if the number isn't on WhatsApp at all,
+        // which is otherwise a silent, hard-to-diagnose failure.
+        const numberId = await client.getNumberId(number);
+        if (!numberId) {
+          console.error(`notifyAdmin: ${number} is not a registered WhatsApp number - message not sent.`);
+          return;
+        }
+        await client.sendMessage(numberId._serialized, text);
+        console.log(`notifyAdmin: notified ${number} (${numberId._serialized}).`);
       } catch (err) {
-        console.error(`Failed to notify ${number}:`, err.message);
+        console.error(`notifyAdmin: failed to notify ${number}:`, err);
       }
     })
   );
