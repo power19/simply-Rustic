@@ -5,16 +5,20 @@ const { listCategories, listAvailableItems, listAvailableServices, findOrCreateC
 const { money, cartTotal, formatCart } = require('./format');
 
 const WELCOME =
-  'Welcome to *{business}*! 🍽️\n\n' +
+  'Hi! 👋 Welcome to *{business}*.\n\n' +
   'What would you like to do?\n' +
-  '1) View our menu\n' +
-  '2) View our catering services\n' +
-  '3) View your cart\n\n' +
-  'You can also type *cart*, *checkout* or *cancel* at any time.';
+  '1) View menu\n' +
+  '2) View services\n' +
+  '3) View cart';
 
 const ASK_CONTACT_INFO =
   'Before we continue - what\'s your name and the best contact number to reach you on?\n' +
   'e.g. "John Smith, 0821234567"';
+
+// Global keywords still work as shortcuts (in case someone types them out of
+// habit), but every prompt now leads with numbered options instead of asking
+// customers to type words like "cart"/"checkout"/"cancel".
+const RESET_WORDS = ['hi', 'hello', 'hey', 'menu', 'start', 'help'];
 
 async function welcomeText() {
   const { businessName } = await getStoreSettings();
@@ -62,6 +66,13 @@ async function formatServiceList() {
   return ['Choose a service to enquire about:', ...lines, '', '0) Back to main menu'].join('\n');
 }
 
+const CART_MENU = '1) Add more items\n2) View cart\n3) Checkout\n4) Cancel order\n0) Main menu';
+
+async function formatCartSummary(cart) {
+  if (!cart.length) return `Your cart is empty.\n\n${CART_MENU}`;
+  return `${await formatCart(cart)}\n\n${CART_MENU}`;
+}
+
 async function notifyAdmin(client, text) {
   const numbers = await getNotificationNumbers();
   await Promise.all(
@@ -100,6 +111,17 @@ function describeCustomer(customer, chatId) {
   return customer.name ? `${customer.name} (${number})` : number;
 }
 
+// Shared by the "3) Checkout" cart-menu option and the CART_ACTIONS state -
+// decides whether we still need the customer's contact details first.
+async function beginCheckout(chatId, session, customer) {
+  if (!customer.contactNumber) {
+    await saveSession(chatId, { step: 'CHECKOUT_CONTACT', categoryId: null, cart: session.cart });
+    return ASK_CONTACT_INFO;
+  }
+  await saveSession(chatId, { step: 'CHECKOUT_NOTE', categoryId: null, cart: session.cart });
+  return 'Please share your event/delivery date, address and any notes for this order (or reply 0 to skip).';
+}
+
 async function handleMessage(client, message) {
   if (message.from === 'status@broadcast' || message.from.endsWith('@g.us')) return;
 
@@ -113,30 +135,14 @@ async function handleMessage(client, message) {
   const customer = await findOrCreateCustomer(chatId, isRealNumber);
   const session = await getSession(chatId);
 
-  // Global commands available from (almost) any step.
-  if (['hi', 'hello', 'hey', 'menu', 'start', 'help'].includes(lower)) {
+  // Global shortcuts, still recognized anywhere but no longer advertised.
+  if (RESET_WORDS.includes(lower)) {
     await resetSession(chatId);
     return message.reply(await welcomeText());
   }
   if (lower === 'cancel') {
     await resetSession(chatId);
-    return message.reply('Your order has been cancelled. Type *menu* to start again.');
-  }
-  if (lower === 'cart') {
-    return message.reply(await formatCart(session.cart));
-  }
-  if (lower === 'checkout' && !['CHECKOUT_NOTE', 'CHECKOUT_CONTACT'].includes(session.step)) {
-    if (!session.cart.length) {
-      return message.reply('Your cart is empty. Type *menu* to browse our menu first.');
-    }
-    if (!customer.contactNumber) {
-      await saveSession(chatId, { step: 'CHECKOUT_CONTACT', categoryId: null, cart: session.cart });
-      return message.reply(ASK_CONTACT_INFO);
-    }
-    await saveSession(chatId, { step: 'CHECKOUT_NOTE', categoryId: null, cart: session.cart });
-    return message.reply(
-      'Please share your event/delivery date, address and any notes for this order (or reply "skip").'
-    );
+    return message.reply(`Your cart has been cleared.\n\n${await welcomeText()}`);
   }
 
   switch (session.step) {
@@ -150,14 +156,15 @@ async function handleMessage(client, message) {
         return message.reply(await formatServiceList());
       }
       if (lower === '3') {
-        return message.reply(await formatCart(session.cart));
+        await saveSession(chatId, { step: 'CART_ACTIONS', categoryId: null, cart: session.cart });
+        return message.reply(await formatCartSummary(session.cart));
       }
       return message.reply(await welcomeText());
     }
 
     case 'BROWSING_CATEGORIES': {
       if (lower === '0') {
-        await resetSession(chatId);
+        await saveSession(chatId, { step: 'MAIN', cart: session.cart });
         return message.reply(await welcomeText());
       }
       const categories = await listCategories();
@@ -189,16 +196,45 @@ async function handleMessage(client, message) {
       } else {
         cart.push({ menuItemId: item.id, name: item.name, price: item.price, quantity: selection.quantity });
       }
-      await saveSession(chatId, { step: 'BROWSING_ITEMS', categoryId: session.categoryId, cart });
-      const { text } = await formatItemList(session.categoryId);
+      await saveSession(chatId, { step: 'CART_ACTIONS', categoryId: session.categoryId, cart });
       return message.reply(
-        `Added ${selection.quantity} x ${item.name} to your cart.\n\n${text}\n\nType *cart* to view your cart or *checkout* when ready.`
+        `Added ${selection.quantity} x ${item.name} to your cart. Total so far: ${await money(cartTotal(cart))}.\n\n${CART_MENU}`
       );
+    }
+
+    case 'CART_ACTIONS': {
+      if (lower === '1') {
+        if (session.categoryId) {
+          const { text } = await formatItemList(session.categoryId);
+          await saveSession(chatId, { step: 'BROWSING_ITEMS', categoryId: session.categoryId, cart: session.cart });
+          return message.reply(text);
+        }
+        await saveSession(chatId, { step: 'BROWSING_CATEGORIES', cart: session.cart });
+        return message.reply(await formatCategoryList());
+      }
+      if (lower === '2') {
+        return message.reply(await formatCartSummary(session.cart));
+      }
+      if (lower === '3') {
+        if (!session.cart.length) {
+          return message.reply(`Your cart is empty - add something first.\n\n${CART_MENU}`);
+        }
+        return message.reply(await beginCheckout(chatId, session, customer));
+      }
+      if (lower === '4') {
+        await resetSession(chatId);
+        return message.reply(`Your cart has been cleared.\n\n${await welcomeText()}`);
+      }
+      if (lower === '0') {
+        await saveSession(chatId, { step: 'MAIN', categoryId: null, cart: session.cart });
+        return message.reply(await welcomeText());
+      }
+      return message.reply(`Sorry, I didn't understand that.\n\n${await formatCartSummary(session.cart)}`);
     }
 
     case 'BROWSING_SERVICES': {
       if (lower === '0') {
-        await resetSession(chatId);
+        await saveSession(chatId, { step: 'MAIN', cart: session.cart });
         return message.reply(await welcomeText());
       }
       const services = await listAvailableServices();
@@ -213,7 +249,7 @@ async function handleMessage(client, message) {
       }
       await saveSession(chatId, { step: 'SERVICE_NOTE', categoryId: service.id, cart: session.cart });
       return message.reply(
-        `Great choice! Please tell us more about your *${service.name}* enquiry (event date, guest count, location) or reply "skip".`
+        `Great choice! Please tell us more about your *${service.name}* enquiry (event date, guest count, location), or reply 0 to skip.`
       );
     }
 
@@ -233,21 +269,21 @@ async function handleMessage(client, message) {
       if (session.step === 'CHECKOUT_CONTACT') {
         await saveSession(chatId, { step: 'CHECKOUT_NOTE', categoryId: null, cart: session.cart });
         return message.reply(
-          'Thanks! Please share your event/delivery date, address and any notes for this order (or reply "skip").'
+          'Thanks! Please share your event/delivery date, address and any notes for this order (or reply 0 to skip).'
         );
       }
 
       const service = await prisma.service.findUnique({ where: { id: session.categoryId } });
       await saveSession(chatId, { step: 'SERVICE_NOTE', categoryId: session.categoryId, cart: session.cart });
       return message.reply(
-        `Thanks! Please tell us more about your *${service?.name}* enquiry (event date, guest count, location) or reply "skip".`
+        `Thanks! Please tell us more about your *${service?.name}* enquiry (event date, guest count, location), or reply 0 to skip.`
       );
     }
 
     case 'SERVICE_NOTE': {
       const serviceId = session.categoryId;
       const service = await prisma.service.findUnique({ where: { id: serviceId } });
-      const note = lower === 'skip' ? null : body;
+      const note = lower === '0' || lower === 'skip' ? null : body;
 
       const order = await prisma.order.create({
         data: {
@@ -266,12 +302,12 @@ async function handleMessage(client, message) {
         `New service enquiry #${order.id}\nService: ${service?.name}\nFrom: ${describeCustomer(customer, chatId)}\nNote: ${note || '-'}`
       );
       return message.reply(
-        `Thank you! Your enquiry for *${service?.name}* has been received (reference #${order.id}). We'll be in touch soon.\n\nType *menu* to go back to the main menu.`
+        `Thank you! Your enquiry for *${service?.name}* has been received (reference #${order.id}). We'll be in touch soon.\n\n${await welcomeText()}`
       );
     }
 
     case 'CHECKOUT_NOTE': {
-      const note = lower === 'skip' ? null : body;
+      const note = lower === '0' || lower === 'skip' ? null : body;
       const total = cartTotal(session.cart);
 
       const order = await prisma.order.create({
@@ -297,7 +333,7 @@ async function handleMessage(client, message) {
         `New order #${order.id}\nFrom: ${describeCustomer(customer, chatId)}\nTotal: ${await money(total)}\nNote: ${note || '-'}\n\n${await formatCart(session.cart)}`
       );
       return message.reply(
-        `Thank you! Your order #${order.id} for ${await money(total)} has been received. We'll confirm it with you shortly.\n\nType *menu* to place another order.`
+        `Thank you! Your order #${order.id} for ${await money(total)} has been received. We'll confirm it with you shortly.\n\n${await welcomeText()}`
       );
     }
 
